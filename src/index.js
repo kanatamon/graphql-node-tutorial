@@ -1,60 +1,46 @@
 const { GraphQLServer } = require('graphql-yoga')
+const { PrismaClient } = require('@prisma/client')
 
-const links = [
-  {
-    id: 'link-0',
-    url: 'www.howtographql.com',
-    description: 'Fullstack tutorial for GraphQL',
-  },
-]
-
-let idCount = links.length
+const prisma = new PrismaClient()
 
 const resolvers = {
   Query: {
     info: () => `This is the API of a Hackernews Clone`,
-    feed: () => links,
-    link: (_, { id }) => links.find((l) => l.id === id),
+    feed: async (parent, args, context) => {
+      return context.prisma.link.findMany()
+    },
+    link: async (parent, { id }, context) => {
+      return context.prisma.link.findOne({
+        where: { id: +id },
+      })
+    },
   },
   Mutation: {
-    post: (_, args) => {
-      const link = {
-        id: `link-${idCount++}`,
-        description: args.description,
-        url: args.url,
-      }
-      links.push(link)
+    post: (parent, args, context) => {
+      const newLink = context.prisma.link.create({
+        data: {
+          url: args.url,
+          description: args.description,
+        },
+      })
+
+      return newLink
+    },
+    updateLink: async (parent, args, context) => {
+      const { id, ...rest } = args
+      const link = await context.prisma.link.update({
+        where: { id: +id },
+        data: { ...rest },
+      })
 
       return link
     },
-    updateLink: (_, args) => {
-      const { id, ...rest } = args
-      const targetLink = links.find((l) => l.id === id)
+    deleteLink: async (parent, { id }, context) => {
+      const link = await context.prisma.link.delete({
+        where: { id: +id },
+      })
 
-      if (!targetLink) {
-        throw Error(`The link with id of '${id}' is not exist!`)
-      }
-
-      const idx = links.indexOf(targetLink)
-      links[idx] = {
-        ...links[idx],
-        ...rest,
-      }
-
-      return links[idx]
-    },
-    deleteLink: (_, args) => {
-      const { id } = args
-      const targetLink = links.find((l) => l.id === id)
-
-      if (!targetLink) {
-        throw Error(`The link with id of '${id}' is not exist!`)
-      }
-
-      const idx = links.indexOf(targetLink)
-      links.splice(idx, 1)
-
-      return targetLink
+      return link
     },
   },
   /*
@@ -73,6 +59,9 @@ const resolvers = {
 const server = new GraphQLServer({
   typeDefs: './src/schema.graphql',
   resolvers,
+  context: {
+    prisma,
+  },
 })
 
 server.start(() => console.log(`Server is running on http://localhost:4000`))
