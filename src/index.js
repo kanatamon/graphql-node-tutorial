@@ -14,9 +14,10 @@ const resolvers = {
   Query: {
     info: () => `This is the API of a Hackernews Clone`,
     feed: () => links,
+    link: (_, { id }) => links.find((l) => l.id === id),
   },
   Mutation: {
-    post: (parent, args) => {
+    post: (_, args) => {
       const link = {
         id: `link-${idCount++}`,
         description: args.description,
@@ -25,6 +26,35 @@ const resolvers = {
       links.push(link)
 
       return link
+    },
+    updateLink: (_, args) => {
+      const { id, ...rest } = args
+      const targetLink = links.find((l) => l.id === id)
+
+      if (!targetLink) {
+        throw Error(`The link with id of '${id}' is not exist!`)
+      }
+
+      const idx = links.indexOf(targetLink)
+      links[idx] = {
+        ...links[idx],
+        ...rest,
+      }
+
+      return links[idx]
+    },
+    deleteLink: (_, args) => {
+      const { id } = args
+      const targetLink = links.find((l) => l.id === id)
+
+      if (!targetLink) {
+        throw Error(`The link with id of '${id}' is not exist!`)
+      }
+
+      const idx = links.indexOf(targetLink)
+      links.splice(idx, 1)
+
+      return targetLink
     },
   },
   /*
